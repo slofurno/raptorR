@@ -2748,6 +2748,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
             return out;
         };
 
+        mat4.fromValues2 = function (out, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) {
+            
+            out[0] = a;
+            out[1] = b;
+            out[2] = c;
+            out[3] = d;
+            out[4] = e;
+            out[5] = f;
+            out[6] = g;
+            out[7] = h;
+            out[8] = i;
+            out[9] = j;
+            out[10] = k;
+            out[11] = l;
+            out[12] = m;
+            out[13] = n;
+            out[14] = o;
+            out[15] = p;
+            return out;
+        };
+
 
         mat4.composeMatrix = function (out, m, v) {
 

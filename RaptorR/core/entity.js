@@ -1,6 +1,13 @@
-﻿function Entity(input) {
+﻿function PhysicalState() {
 
-    this.position = vec3.fromValues(0, 40, 0);
+    this.position = vec3.create();
+
+
+}
+
+function Entity(input) {
+
+    this.position = vec3.fromValues(-5, 40, 10);
     this.orientation = mat4.create();
     mat4.identity(this.orientation);
     this.velocity = vec3.create();
@@ -122,7 +129,7 @@ Entity.prototype.update = function () {
 
     var right = vec3.create();
     
-    vec3.cross(right, facing, this.up);
+    vec3.cross(right, guns, this.up);
 
     this.orientation[0] = right[0];
     this.orientation[1] = right[1];
@@ -130,13 +137,13 @@ Entity.prototype.update = function () {
 
     
 
-    this.orientation[8] = -facing[0];
-    this.orientation[9] = -facing[1];
-    this.orientation[10] = -facing[2];
+    this.orientation[8] = guns[0];
+    this.orientation[9] = guns[1];
+    this.orientation[10] = guns[2];
 
 
 
-    if (controllers[0].buttons[7] > 0) {
+    if (controllers[0].buttons[7] > .2) {
 
 
         if (this.cooldown > 0) {

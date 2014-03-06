@@ -738,7 +738,7 @@ function drawScene() {
 
 
 
-    mvPushMatrix();
+    
 
 
 
@@ -755,15 +755,12 @@ function drawScene() {
 
 
 
+    /*
+    mvPushMatrix();
 
 
 
-
-
-    var mvm = mat4.fromValues(right[0], up[0], front[0], 0,
-                    right[1], up[1], front[1], 0,
-                     -right[2], -up[2], -front[2], 0,
-                    mycamerapos.x, mycamerapos.y, mycamerapos.z, 1);
+    var mvm = mat4.create();
 
 
     mvm = testEntity.updateMatrix();
@@ -785,7 +782,9 @@ function drawScene() {
     mvPopMatrix();
 
 
+    */
 
+    modelSystem.drawAll();
 
 
 
@@ -890,6 +889,7 @@ function tick() {
     moveCamera(mycamerapos, mycamerarot, mykeyboard);
 
     testEntity.update();
+    testEntitytwo.update();
     testEntity.getData(posx);
     console.log("vel + " + posx);
 
@@ -903,17 +903,20 @@ var bulletmanager;
 function webGLStart() {
     var canvas = document.getElementById("pscanvas");
     mykeyboard = new KeyboardState();
-
+    addEventListener("gamepadconnected", function () { });
     initGL(canvas);
 
     testEntity = new Entity(mykeyboard);
+
+    testEntitytwo = new Entity(mykeyboard);
+    testEntitytwo.position = vec3.fromValues(5, 40, 0);
     testmesh = new Mesh();
 
     //loadFile(testmesh);
 
-    loadFile(testmesh, "string");
+    loadFile(testmesh, "bz111.obj");
 
-
+    
 
 
     testterrain = new terrainMesh(128, 128);
@@ -964,7 +967,8 @@ function webGLStart() {
 
     });
 
-
+    modelSystem.createInstance("bz111.obj", testEntity);
+    modelSystem.createInstance("bz111.obj", testEntitytwo);
 
     tick();
 }
@@ -1087,18 +1091,46 @@ function addgamepad(gamepad) {
     controllers[gamepad.index] = gamepad;
 }
 
+var firefoxpad = new GamePadState();
+
 function scangamepads() {
-    var gamepads = navigator.webkitGetGamepads();
+
+    var gamepads;
+
+    if (navigator.webkitGetGamepads) {
+        gamepads = navigator.webkitGetGamepads();
+    }
+    
+
+    if (navigator.getGamepads) {
+        var gp = navigator.getGamepads()[0];
+        //gamepads = navigator.getGamepads();
+        console.log(gp.mapping);
+        var gamepads = [firefoxpad];
+        gamepads[0].axes[0] = gp.axes[0];
+        gamepads[0].axes[1] = gp.axes[1];
+        gamepads[0].axes[2] = gp.axes[3];
+        gamepads[0].axes[3] = gp.axes[4];
+
+        gamepads[0].buttons[7] = Math.abs(gp.axes[2]);
+
+    }
+
+   
+
     if (gamepads.length > 0) {
 
         controllers[0] = gamepads[0];
     }
+
+
+
 }
 
 function updatePads() {
-    if (navigator.webkitGetGamepads) {
+    
         scangamepads();
-    }
+    
    
     var controller = controllers[0];
         
@@ -1117,7 +1149,7 @@ function GamePadState() {
 
    
     this.axes=[0,0,0,0];
-    this.buttons=[0,0,0,0,0,0,0,0,0,0,0];
+    this.buttons=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
     this.id="";
     this.index = 0;
     this.timestamp = 0;
@@ -1463,19 +1495,73 @@ function normalise(A) {
 
 }
 
+var modelSystem = new ModelSystem();
+
+function ModelSystem() {
+
+    this.modelarray = {};
+
+}
+
+
+
+ModelSystem.prototype.add = function (mesh, filename) {
+
+
+
+    this.modelarray[filename] = mesh;
+
+};
+
+ModelSystem.prototype.createInstance = function (filename, entity) {
+
+    if (this.modelarray[filename] != null) {
+
+        //var instance = new Model(this.modelarray[filename], entity);
+        this.modelarray[filename].addInstance(entity);
+
+        //return instance;
+    }
+
+};
+
+ModelSystem.prototype.drawAll = function () {
+
+    for (models in this.modelarray) {
+        
+
+
+        this.modelarray[models].drawInstances();
+
+    }
+
+};
+
+function Model(mesh) {
+
+    this.mesh = mesh;
+    this.matrix = mat4.create();
+    this.entity = entity;
+
+
+}
 
 
 function loadFile(mesh, filename) {
 
+
+    modelSystem.add(mesh, filename);
     var filedata;
 
-    jQuery.get("models/bz111.obj", function (data) {
+    var modelfile = "models/" + filename;
+
+    jQuery.get(modelfile, function (data) {
 
 
 
         mesh.buildmesh(data);
         mesh.bindbuffers();
-
+        
 
     }, 'text');
 
@@ -1492,7 +1578,7 @@ function Mesh() {
     this.normals = [];
     this.uvs = [];
 
-
+    this.instances = [];
 
     this.meshvertbuffer;
     this.normalbuffer;
@@ -1500,6 +1586,12 @@ function Mesh() {
 
     this.ready = false;
 }
+
+Mesh.prototype.addInstance = function (Model) {
+
+    this.instances.push(Model);
+
+};
 
 Mesh.prototype.buildmesh = function (data) {
 
@@ -1667,8 +1759,60 @@ Mesh.prototype.draw = function () {
 
 
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.meshvertbuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, this.meshvertbuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.normalbuffer);
+        gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, this.normalbuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.uvbuffer);
+        gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, this.uvbuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, crateTexture);
+        gl.uniform1i(shaderProgram.samplerUniform, 0);
 
 
+
+        
+
+        gl.drawArrays(gl.TRIANGLES, 0, Math.floor(this.vertices.length / 3 + .5));
+
+        
+
+
+        
+
+
+
+        /*
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, meshvertbuffer);
+        gl.vertexAttribPointer(terrainShaderProgram.vertexPositionAttribute, meshvertbuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.normalbuffer);
+        gl.vertexAttribPointer(terrainShaderProgram.vertexNormalAttribute, this.normalbuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.uvbuffer);
+        gl.vertexAttribPointer(terrainShaderProgram.textureCoordAttribute, this.uvbuffer.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, crateTexture);
+        gl.uniform1i(terrainShaderProgram.samplerUniform, 0);
+
+        gl.drawArrays(gl.TRIANGLES, 0, Math.floor(this.vertices.length / 3 + .5));
+
+        */
+
+    }
+};
+
+Mesh.prototype.drawInstances = function () {
+
+    
+
+    if (this.ready) {
+        
 
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.meshvertbuffer);
@@ -1684,7 +1828,41 @@ Mesh.prototype.draw = function () {
         gl.bindTexture(gl.TEXTURE_2D, crateTexture);
         gl.uniform1i(shaderProgram.samplerUniform, 0);
 
-        gl.drawArrays(gl.TRIANGLES, 0, Math.floor(this.vertices.length / 3 + .5));
+
+
+        for (var instance in this.instances) {
+
+            console.log("222WTSDGSDGSD");
+
+            mvPushMatrix();
+
+
+
+            var mvm = mat4.create();
+
+
+            mvm = this.instances[instance].updateMatrix();
+
+            //mat4.transpose(mvm, mvm);
+
+            mat4.multiply(mvMatrix, mvMatrix, mvm);
+
+
+
+
+
+
+
+            setMatrixUniforms();
+
+            gl.drawArrays(gl.TRIANGLES, 0, Math.floor(this.vertices.length / 3 + .5));
+
+            mvPopMatrix();
+
+        }
+
+
+
 
 
 
@@ -1713,6 +1891,7 @@ Mesh.prototype.draw = function () {
 
 var testmesh;
 var testEntity;
+var testEntitytwo;
 
 var polytrail;
 var polytrail2;
@@ -1727,6 +1906,11 @@ function polyTrail() {
     this.vertices = [];
     this.previousvertices = [];
     this.nextvertices = [];
+
+    this.vertindex = 0;
+    this.previndex = 0;
+    this.nextindex = 0;
+
     this.length = 0;
     this.next = 1;
     this.previousposition;
@@ -1948,7 +2132,7 @@ function bullet(position, direction, speed) {
     this.position[2] += this.direction[2] * this.speed * 1;
 
 
-    this.vertexarray;
+    this.vertexarray = mat4.create();
 
 }
 
@@ -1975,7 +2159,7 @@ bullet.prototype.update = function () {
     var a = this.position;
     var b = this.previousposition;
 
-    this.vertexarray = mat4.fromValues(a[0], a[1], a[2], 1.0, a[0], a[1], a[2], -1.0, b[0], b[1], b[2], 1.0, b[0], b[1], b[2], -1.0);
+    mat4.fromValues2(this.vertexarray, a[0], a[1], a[2], 1.0, a[0], a[1], a[2], -1.0, b[0], b[1], b[2], 1.0, b[0], b[1], b[2], -1.0);
 
     
 
